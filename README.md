@@ -38,4 +38,5 @@ Still in development, not ready for use yet.
 * Kaphotics and pichu2001 - Some scripting research for Generation 5.
 * Barubary - DSDecmp
 * KazoWAR - Finding the trdata/trpoke structures for Generation 5.
+
 Anyone else I forgot? Let me know!
