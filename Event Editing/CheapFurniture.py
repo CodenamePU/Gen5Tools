@@ -11,9 +11,9 @@ PREFIX = 'arm-none-eabi-'
 AS = (devkitPATH + PREFIX + 'as')
 ASFLAGS = '-mthumb'
 OBJCOPY = (devkitPATH + PREFIX + 'objcopy')
-overworld = open(sys.argv[2], "rb")
 
-def get_counts(type):
+def get_counts(type, ow_file):
+	overworld = open(ow_file, "rb")
 	types = {
 		"furniture" : 0x4,
 		"npc" : 0x5,
@@ -23,15 +23,10 @@ def get_counts(type):
 	overworld.seek(types[type.lower()], 0)
 	return struct.unpack("<B", overworld.read(1))
 
-def get_filesize():
+def get_filesize(ow_file):
+	overworld = open(ow_file, "rb")
 	overworld.seek(0x0, 0)
 	return struct.unpack("<L", overworld.read(4))
-
-nFurniture = get_counts("furniture")
-nNPC = get_counts("npc")
-nWarps = get_counts("warp")
-nTriggers = get_counts("trigger")
-fileSize = get_filesize()
 
 furniture = []
 npc = []
@@ -39,31 +34,36 @@ warp = []
 trigger = []
 extra = []
 
-def extract_furniture():
+def extract_furniture(ow_file):
+	overworld = open(ow_file, "rb")
 	overworld.seek(0x8, 0)
 	for x in range(0, nFurniture[0]):
 		furniture.append(struct.unpack("<HHHHLLL", overworld.read(0x14)))
 	return
 
-def extract_npc():
+def extract_npc(ow_file):
+	overworld = open(ow_file, "rb")
 	overworld.seek(0x8 + (nFurniture[0] * 0x14), 0)
 	for x in range(0, nNPC[0]):
 		npc.append(struct.unpack("<HHHHHHHHHHHHHHHHHH", overworld.read(0x24)))
 	return
 
-def extract_warp():
+def extract_warp(ow_file):
+	overworld = open(ow_file, "rb")
 	overworld.seek(0x8 + (nFurniture[0] * 0x14) + (nNPC[0] * 0x24), 0)
 	for x in range(0, nWarps[0]):
 		warp.append(struct.unpack("<HHBBHHHHHHH", overworld.read(0x14)))
 	return
 
-def extract_trigger():
+def extract_trigger(ow_file):
+	overworld = open(ow_file, "rb")
 	overworld.seek(0x8 + (nFurniture[0] * 0x14) + (nNPC[0] * 0x24) + (nWarps[0] * 0x14), 0)
 	for x in range(0, nTriggers[0]):
 		trigger.append(struct.unpack("<HHHHHHHHHHH", overworld.read(0x16)))
 	return
 
-def get_extra(): # ???
+def get_extra(ow_file): # ???
+	overworld = open(ow_file, "rb")
 	isEnd = False
 	overworld.seek(0x8 + (nFurniture[0] * 0x14) + (nNPC[0] * 0x24) + (nWarps[0] * 0x14) + (nTriggers[0] * 0x16), 0)
 	while isEnd != True:
@@ -73,21 +73,25 @@ def get_extra(): # ???
 			isEnd = True
 	return
 
-def overworld_to_asm():
-	extract_furniture()
-	extract_npc()
-	extract_warp()
-	extract_trigger()
+def overworld_to_asm(overworld):
+	nFurniture = get_counts("furniture", overworld)
+	nNPC = get_counts("npc", overworld)
+	nWarps = get_counts("warp", overworld)
+	nTriggers = get_counts("trigger", overworld)
+	fileSize = get_filesize(overworld)
+	extract_furniture(overworld)
+	extract_npc(overworld)
+	extract_warp(overworld)
+	extract_trigger(overworld)
 	if (nTriggers[0] > 0):
-		get_extra()
+		get_extra(overworld)
 
-	with open(os.path.splitext(os.path.basename(sys.argv[2]))[0] + ".s", "w") as output:
-		output.write(".align 4\n\n.include \"b2w2.s\"\n")
-		output.write(".word " + hex(fileSize[0]) + " @fileSize\n")
-		output.write(".byte " + hex(nFurniture[0]) + " @nFurniture\n")
-		output.write(".byte " + hex(nNPC[0]) + " @nNPC\n")
-		output.write(".byte " + hex(nWarps[0]) + " @nWarps\n")
-		output.write(".byte " + hex(nTriggers[0]) + " @nTriggers\n")
+	with open(overworld, "w") as output:
+		output.write(".align 4\n.include \"B2W2.s\"\n")
+		output.write(".byte " + hex(nFurniture[0]) + " @ Amount of Furniture\n")
+		output.write(".byte " + hex(nNPC[0]) + " @ Amount of NPCs\n")
+		output.write(".byte " + hex(nWarps[0]) + " @ Amount of Warps\n")
+		output.write(".byte " + hex(nTriggers[0]) + " @ Amount of Triggers\n")
 		output.write("\n")
 
 		if (nFurniture[0] > 0):
@@ -120,23 +124,28 @@ def overworld_to_asm():
 
 		if (len(extra) > 0):
 			output.write("\n@ Extra Data (Triggers?)\n")
-			output.write("ExtraData:\n")
+			output.write("Extra_Data:\n")
 			for x in range(0, len(extra)):
 				output.write("	extra " + str(extra[x][0]) + ", " + str(extra[x][1]) + "\n")
 	return
 
 def asm_to_overworld(file):
-	cmd = [AS] + [ASFLAGS] + ['-c', file, '-o', os.path.splitext(os.path.basename(file))[0] + '.o']
+	cmd = [AS] + [ASFLAGS] + ['-c', file, '-o', os.path.splitext(file)[0] + '.o']
 	subprocess.run(cmd)
-	cmd = [OBJCOPY, '-O', 'binary', os.path.splitext(os.path.basename(file))[0] + '.o', os.path.splitext(os.path.basename(file))[0] + '.bin']
+	cmd = [OBJCOPY, '-O', 'binary', os.path.splitext(file)[0] + '.o', os.path.splitext(file)[0] + '.bin']
 	subprocess.run(cmd)
+	size = os.path.getsize(os.path.splitext(file)[0] + '.bin')
+	with open(os.path.splitext(file)[0] + '.bin', "ab") as ow:
+		ow.seek(0, 0)
+		ow.write(struct.pack("<L", size - 4))
+		ow_data.close()
 	return
 
 def main():
-	if sys.argv[1].lower() == "decompile":
-		overworld_to_asm()
-	elif sys.argv[1].lower() == "compile":
+	if os.path.splitext(sys.argv[1]) == ".s":
 		asm_to_overworld(sys.argv[2])
+	elif os.path.splitext(sys.argv[1]) == ".bin":
+		overworld_to_asm(sys.argv[2])
 	else:
 		print("invalid option")
 	return
