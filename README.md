@@ -1,15 +1,15 @@
 # Gen5Tools
 Tools for hacking Generation 5 of Pokémon.
 
-## Usage
+### Usage
 
-### CheapScript - DS Generation Scripting Made Easy!
+#### CheapScript - DS Generation Scripting Made Easy!
 See [here](https://github.com/CodenamePU/CheapScript).
 
-### CheapTrainer - DS Generation Trainer Editing Made Easy!
+#### CheapTrainer - DS Generation Trainer Editing Made Easy!
 Still in development, not ready for use yet.
 
-### CheapFurniture - DS Generation Event Editing Made Easy!
+#### CheapFurniture - DS Generation Event Editing Made Easy!
 **Very experimental. The struct is not completely figured out (help on this would be appreciated), and it is not dynamic in terms of sizing (you will have to state a fixed size every time). You have been warned.**
 
 * Extract the overworld NARC a1/2/6.
