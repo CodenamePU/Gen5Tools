@@ -1,6 +1,10 @@
 # Gen5Tools
 Tools for hacking Generation 5 of Pokémon.
 
+### Requirements:
+* [Python 3.4+](https://www.python.org)
+* [devkitARM](https://github.com/devkitPro/installer/releases)
+
 ### Usage
 
 #### NARCTool (only for Pokémon games).
