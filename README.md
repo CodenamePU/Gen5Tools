@@ -1,4 +1,4 @@
-# Gen5Tools
+# Generation 5 Tools
 Tools for hacking Generation 5 of Pokémon.
 
 ### Requirements:
