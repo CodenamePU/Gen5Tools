@@ -45,20 +45,15 @@ file_extensions = {
 }
 
 # NARC Tool
-def NARC_Unpack(narc, output_folder):
-    if output_folder == None:
-        if ('.' in narc) == True:
-            output_folder = narc.split('.')[0] + "_u"
-
-    try:
-        os.mkdir(output_folder)
-    except FileExistsError:
-        pass
+def NARC_Unpack(narc, output=None, decompress = True):
+    if output is None:
+         output = narc.split('.')[0] + "_u"
 
     with open(narc, "rb") as narc_file:
+        print("Getting data...")
         # Header
         magic, constant, fileSize, headerSize, nSections = struct.unpack("<LLLHH", narc_file.read(struct.calcsize("<LLLHH")))
-        print("Getting data...")
+
         # File Allocation Table Block (FATB)
         fatb_magic, fatb_sectionSize, fatb_nFiles = struct.unpack("<LLL", narc_file.read(struct.calcsize("LLL")))
         fatb_startoffsets = []
@@ -107,6 +102,11 @@ def NARC_Unpack(narc, output_folder):
         fimg_magic, fimg_sectionSize = struct.unpack("<LL", narc_file.read(8))
 
         # Extract it now
+        try:
+            os.mkdir(output)
+        except FileExistsError:
+            pass
+
         print("Extracting...")
         for x in range(0, fatb_nFiles):
             extension = ""
@@ -122,40 +122,40 @@ def NARC_Unpack(narc, output_folder):
                 narc_file.seek(-1, 1)
                 extension = file_extensions[0x11]
 
-            with open(os.path.join(os.getcwd(), output_folder, str(fntb_name[x]) +  extension), "wb") as file:
+            with open(os.path.join(output, str(fntb_name[x]) +  extension), "wb") as file:
                 file.write(narc_file.read(fatb_endoffsets[x][0] - fatb_startoffsets[x][0]))
 
-        lz_cfg = open(os.path.join(output_folder, "lz.cfg"), "w")
-        for lz_file in glob.glob(os.path.join(os.getcwd(), output_folder, "*.lzss")):
-            print(lz_file)
-            cmd = [os.path.join("Formats", "LZSS", "DSDecmp"), lz_file, lz_file]
-            subprocess.check_output(cmd)
-            lz_cfg.write(os.path.basename(lz_file) + "\n")
+        if decompress == True:
+            lz_cfg = open(os.path.join(output, "lz.cfg"), "w")
+            for lz_file in glob.glob(os.path.join(os.getcwd(), output, "*.lzss")):
+                print("Decompressing %s" % lz_file)
+                cmd = [os.path.join("Formats", "LZSS", "DSDecmp"), lz_file, lz_file]
+                subprocess.check_output(cmd)
+                lz_cfg.write(os.path.basename(lz_file) + "\n")
         print("Done!")
     return
 
-def NARC_Pack(unpacked_narc, output_folder):
+def NARC_Pack(unpacked_narc, output=None, compress=True):
+    if output is None:
+         output = narc.split('.')[0] + "_u"
+
     print("Getting files in folder...")
     blacklist = {"lz.cfg"}
     files = sorted((z for z in os.listdir(os.path.join(unpacked_narc)) if z not in blacklist), key = lambda x: int(os.path.splitext(x)[0]))
 
-    try:
-        os.mkdir(output_folder)
-    except FileExistsError:
-        pass
-
-    with open(os.path.join(unpacked_narc, "lz.cfg"), "r") as lz_cfg:
-        for lz_file in lz_cfg.read().splitlines():
-            print('Compressing %s' % lz_file)
-            cmd = [os.path.join("Formats", "LZSS", "DSDecmp"), '-c', 'lz11', os.path.join(unpacked_narc, lz_file), os.path.join(unpacked_narc, lz_file)]
-            subprocess.check_output(cmd)
+    if compress == True:
+        with open(os.path.join(unpacked_narc, "lz.cfg"), "r") as lz_cfg:
+            for lz_file in lz_cfg.read().splitlines():
+                print('Compressing %s' % lz_file)
+                cmd = [os.path.join("Formats", "LZSS", "DSDecmp"), '-c', 'lz11', os.path.join(unpacked_narc, lz_file), os.path.join(unpacked_narc, lz_file)]
+                subprocess.check_output(cmd)
 
     # FIMG creation
     print("Making FIMG...")
     fimg_data = b""
     file_sizes = []
     fimg_end = 0
-    with open(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fimg.bin", "wb") as fimg:
+    with open(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fimg.bin", "wb") as fimg:
         fimg.write(struct.pack("<L", 0x46494D47))
         for x in range(0, len(files)):
             print(files[x])
@@ -169,7 +169,7 @@ def NARC_Pack(unpacked_narc, output_folder):
     # FNTB creation
     # 42 54 4E 46 10 00 00 00 04 00 00 00 00 00 01 00
     print("Making FNTB...")
-    with open(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fntb.bin", "wb") as fntb:
+    with open(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fntb.bin", "wb") as fntb:
         fntb.write(struct.pack("<L", 0x464E5442))
         fntb.write(struct.pack("<L", 0x10))
         fntb.write(struct.pack("<L", 0x4))
@@ -178,7 +178,7 @@ def NARC_Pack(unpacked_narc, output_folder):
 
     # FATB creation
     print("Making FATB...")
-    with open(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fatb.bin", "wb") as fatb:
+    with open(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fatb.bin", "wb") as fatb:
         fatb.write(struct.pack("<L", 0x46415442))
         fatb.write(struct.pack("<L", 0x4 + 0x4 + 0x4 + (0x8 * len(file_sizes))))
         fatb.write(struct.pack("<L", len(file_sizes)))
@@ -192,12 +192,12 @@ def NARC_Pack(unpacked_narc, output_folder):
     # Bring it all together
     print("Making the NARC...")
     narc_data = b""
-    with open(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + ".narc", "wb") as narc:
+    with open(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + ".narc", "wb") as narc:
         narc.write(struct.pack("<L", 0x4352414E))
         narc.write(struct.pack("<L", 0x0100FFFE))
-        fimg = open(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fimg.bin", "rb")
-        fntb = open(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fntb.bin", "rb")
-        fatb = open(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fatb.bin", "rb")
+        fimg = open(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fimg.bin", "rb")
+        fntb = open(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fntb.bin", "rb")
+        fatb = open(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fatb.bin", "rb")
         narc_data += fatb.read()
         narc_data += fntb.read()
         narc_data += fimg.read()
@@ -212,9 +212,9 @@ def NARC_Pack(unpacked_narc, output_folder):
 
     # Cleanup
     try:
-        os.remove(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fimg.bin")
-        os.remove(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fntb.bin")
-        os.remove(os.path.join(output_folder, os.path.basename(unpacked_narc.split("_")[0])) + "_fatb.bin")
+        os.remove(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fimg.bin")
+        os.remove(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fntb.bin")
+        os.remove(os.path.join(output, os.path.basename(unpacked_narc.split("_")[0])) + "_fatb.bin")
     except FileNotFoundError:
         pass
 
