@@ -15,4 +15,4 @@ if len(sys.argv) > 2:
         else:
             NARC_Pack(sys.argv[2], sys.argv[3])
 else:
-    print("Usage:\n\nTo decompile: python NARCTool.py extract <NARC> <output directory> <decompress? [optional]>\nTo compile: python NARCTool.py compile <extracted NARC> <output directory> <compress? [optional]>")
+    print("Usage:\n\nTo decompile: python NARCTool.py extract <NARC> <output directory>\nTo compile: python NARCTool.py compile <extracted NARC> <output directory>")
