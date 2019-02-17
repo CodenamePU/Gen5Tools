@@ -9,10 +9,10 @@ Tools for hacking Generation 5 of Pokémon.
 
 #### NARCTool (only for Pokémon games).
 * To decompile:
-```python NARCTool.py extract <NARC> <output directory>```
+```python NARCTool.py extract <NARC> <output directory> [decompress? (optional)]```
 
 * To compile:
-```python NARCTool.py compile <extracted NARC> <output directory>```
+```python NARCTool.py compile <extracted NARC> <output directory> [compress? (optional)]```
 
 **Please note: all files will be compressed/decompressed when running these operations. Double compression will happen. To prevent this, edit the `lz.cfg` present in the extracted NARC directory, and remove the files which have been compressed. I will implement a solution as soon as I think of one.**
 
